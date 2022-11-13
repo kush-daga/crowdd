@@ -11,8 +11,23 @@ datasource db {
 }
 
 model User {
-  id    String  @id @default(cuid())
-  email String  @unique
-  name  String?
-  photo String?
+  id               String             @id @default(cuid())
+  email            String             @unique
+  name             String?
+  photo            String?
+  DestinationVisit DestinationVisit[]
+}
+
+model Destination {
+  id                String             @id @default(cuid())
+  googlePlaceId     String             @unique
+  destinationVisits DestinationVisit[]
+}
+
+model DestinationVisit {
+  id            String      @id @default(cuid())
+  destination   Destination @relation(fields: [destinationId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
+  destinationId String
+  userId        String
 }
