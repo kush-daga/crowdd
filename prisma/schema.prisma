@@ -2,7 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["filteredRelationCount"]
 }
 
 datasource db {
@@ -21,6 +22,10 @@ model User {
 model Destination {
   id                String             @id @default(cuid())
   googlePlaceId     String             @unique
+  name              String
+  locality          String
+  rating            String
+  description       String
   destinationVisits DestinationVisit[]
 }
 

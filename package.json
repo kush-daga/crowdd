@@ -12,6 +12,7 @@
 		"preinstall": "npx only-allow pnpm"
 	},
 	"dependencies": {
+		"@googlemaps/google-maps-services-js": "^3.3.16",
 		"@prisma/client": "^4.6.1",
 		"@remix-run/node": "^1.7.5",
 		"@remix-run/react": "^1.7.5",

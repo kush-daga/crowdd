@@ -1,21 +1,34 @@
+import type { Destination } from "@prisma/client";
 import { prisma } from "~/utils/prisma.server";
 
 export const findOrCreateDestination = async ({
 	googleId,
+	googleData,
 }: {
 	googleId: string;
+	googleData?: Omit<Destination, "id">;
 }) => {
 	const existingDestination = await prisma.destination.findUnique({
 		where: { googlePlaceId: googleId },
 	});
 
-	if (!existingDestination) {
+	if (!existingDestination && googleData) {
+		const { locality, description, googlePlaceId, name, rating } = googleData;
+
 		const destination = await prisma.destination.create({
 			data: {
-				googlePlaceId: googleId,
+				locality,
+				description,
+				googlePlaceId,
+				name,
+				rating,
 			},
 		});
 		return destination;
+	}
+
+	if (!existingDestination && !googleData) {
+		throw new Error("incomplete data");
 	}
 
 	return existingDestination;
@@ -37,7 +50,7 @@ export const markVisit = async ({
 			data: {
 				destination: {
 					connect: {
-						id: destination.id,
+						id: destination!.id,
 					},
 				},
 				user: {
@@ -48,10 +61,41 @@ export const markVisit = async ({
 			},
 		});
 	} catch (err) {
-		console.log("ERROR OCCURRED IN CREATNG", err);
+		console.log("ERROR OCCURRED IN CREATING", err);
 	}
 
 	const totalVisits = await prisma.destinationVisit.count();
 
 	return totalVisits;
+};
+
+export const getTopDestinationsIndia = async ({
+	locality,
+}: {
+	locality: string | null;
+}) => {
+	let destinations = [];
+	if (!locality) {
+		destinations = await prisma.destination.findMany({
+			orderBy: {
+				destinationVisits: {
+					_count: "desc",
+				},
+			},
+			take: 20,
+		});
+	} else {
+		destinations = await prisma.destination.findMany({
+			orderBy: {
+				destinationVisits: {
+					_count: "desc",
+				},
+			},
+			take: 20,
+			where: {
+				locality,
+			},
+		});
+	}
+	return destinations;
 };
