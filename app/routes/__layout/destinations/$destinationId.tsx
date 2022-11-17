@@ -1,16 +1,21 @@
-import type { LoaderFunction } from "@remix-run/node";
+import type { ActionFunction, LoaderFunction } from "@remix-run/node";
+import { redirect } from "@remix-run/node";
+import type { PlaceData } from "@googlemaps/google-maps-services-js";
+import type { Destination, DestinationVisit, User } from "@prisma/client";
 import { json } from "@remix-run/node";
 import { checkUserAuth } from "~/utils/auth.server";
-import { useLoaderData } from "@remix-run/react";
-import type { PlaceData } from "@googlemaps/google-maps-services-js";
+import { Form, useLoaderData } from "@remix-run/react";
 import { Client as GoogleClient } from "@googlemaps/google-maps-services-js";
-import { findOrCreateDestination } from "~/utils/db/models/destination.server";
-import type { Destination, User } from "@prisma/client";
+import {
+	checkOutVisit,
+	findOrCreateDestination,
+	markVisit,
+} from "~/utils/db/models/destination.server";
 
 type LoaderData = Awaited<
 	Promise<{
 		user: User;
-		destination: Destination;
+		destination: Destination & { destinationVisits: DestinationVisit[] };
 		googleData: Partial<PlaceData>;
 		placeImage: any;
 	}>
@@ -46,7 +51,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 
 		if (place.photos) {
 			const reference = place.photos![0].photo_reference;
-			const placePhotoPromise = await client.placePhoto({
+			const placePhotoPromise = client.placePhoto({
 				params: {
 					photoreference: reference,
 					key: process.env.GOOGLE_MAPS_SERVER_KEY!,
@@ -83,16 +88,137 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 	}
 };
 
+export const action: ActionFunction = async ({ params, request }) => {
+	const formData = await request.formData();
+	const { user } = await checkUserAuth(request);
+	console.log("IM HERE", user);
+	const intent = await formData.get("intent");
+	const destinationId = params.destinationId!;
+	if (intent === "check-in") {
+		await markVisit({ destinationGoogleId: destinationId, userId: user.id });
+		return redirect("/");
+	}
+	if (intent === "check-out") {
+		try {
+			await checkOutVisit({
+				destinationGoogleId: destinationId,
+				userId: user.id,
+			});
+
+			return redirect("/");
+		} catch (err) {
+			console.log(err);
+			return {};
+		}
+	}
+
+	return {};
+};
+
 export default function DestinationRoute() {
 	const data = useLoaderData<LoaderData>();
+	const isOpen = data.googleData.opening_hours?.open_now;
+	const isOpenPillStyle = isOpen
+		? "bg-green-100 border-green-500 text-green-700"
+		: "bg-red-100 border-red-500 text-red-700";
+
+	const name = data.destination.name;
+	const visits = data.destination.destinationVisits;
+	const isUserHere =
+		visits.filter(
+			(v) =>
+				v.destinationId === data.destination.id && v.userId === data.user.id
+		).length > 0;
+
 	return (
 		<div>
 			<img
-				className="h-[300px] w-full object-cover"
+				className="h-[300px] w-full object-cover my-6 rounded-md shadow-md"
 				alt="destination"
 				src={`data:image/png;base64,${data?.placeImage}`}
 			/>
-			<h1 className="font-bold text-3xl mt-4">{data.destination.name}</h1>
+			<div className="flex items-center justify-between gap-4">
+				<div className="flex items-baseline gap-4">
+					<h1 className="font-bold text-2xl md:text-4xl hidden md:flex">
+						{name.length > 20 ? name.substring(0, 20) + "..." : name}
+					</h1>
+					<h1 className="font-bold md:hidden text-2xl md:text-4xl">
+						{name.length > 12 ? name.substring(0, 12) + "..." : name}
+					</h1>
+					{data.googleData.price_level && (
+						<div>
+							{new Array(data.googleData.price_level)
+								.fill(0)
+								.map((l: number, idx) => {
+									const colorMap = {
+										1: "text-red-500",
+										2: "text-red-600",
+										3: "text-red-700",
+										4: "text-red-800",
+									};
+
+									// STUFF TO HANDLE DEFAULT CASE -- OVER-ENGINEERING :P
+									let handler = {
+										get: function (target: any, name: string) {
+											return target.hasOwnProperty(name)
+												? target[name]
+												: "text-black";
+										},
+									};
+
+									let p = new Proxy(colorMap, handler);
+
+									const colorValue = p[idx + 1];
+
+									return (
+										<span
+											className={`${colorValue} font-bold text-lg md:text-2xl`}
+											key={idx}
+										>
+											$
+										</span>
+									);
+								})}
+						</div>
+					)}
+				</div>
+				<div className="">
+					<p
+						className={`font-semibold flex items-center justify-center  px-3 py-0.5 text-xs md:text-sm rounded-xl border ${isOpenPillStyle}`}
+					>
+						{isOpen ? "OPEN" : "CLOSED"}
+					</p>
+				</div>
+			</div>
+
+			<div>
+				<p className="text-gray-600 text-lg md:text-xl mt-3">
+					{data.destination.description}
+				</p>
+			</div>
+			<p className="text-xl md:text-2xl flex items-baseline gap-2 text-gray-600 font-semibold mt-4">
+				<span className="text-2xl md:text-3xl">👥</span>
+				<span>{data.destination.destinationVisits.length} folks are here!</span>
+			</p>
+			<Form method="post">
+				{isUserHere ? (
+					<button
+						className="bg-gray-100 px-6 py-4 rounded-md font-semibold text-gray-600 hover:bg-gray-200 mt-5 w-full text-xl"
+						name="intent"
+						value="check-out"
+					>
+						I am checking out of here!
+					</button>
+				) : (
+					<button
+						className="bg-gray-100 px-6 py-4 rounded-md font-semibold text-gray-600 hover:bg-gray-200 mt-5 w-full text-xl"
+						name="intent"
+						value="check-in"
+					>
+						I am going here!
+					</button>
+				)}
+			</Form>
 		</div>
 	);
 }

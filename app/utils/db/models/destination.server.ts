@@ -10,6 +10,9 @@ export const findOrCreateDestination = async ({
 }) => {
 	const existingDestination = await prisma.destination.findUnique({
 		where: { googlePlaceId: googleId },
+		include: {
+			destinationVisits: true,
+		},
 	});
 
 	if (!existingDestination && googleData) {
@@ -22,6 +25,9 @@ export const findOrCreateDestination = async ({
 				googlePlaceId,
 				name,
 				rating,
+			},
+			include: {
+				destinationVisits: true,
 			},
 		});
 		return destination;
@@ -62,6 +68,35 @@ export const markVisit = async ({
 		});
 	} catch (err) {
 		console.log("ERROR OCCURRED IN CREATING", err);
+	}
+
+	const totalVisits = await prisma.destinationVisit.count();
+
+	return totalVisits;
+};
+
+export const checkOutVisit = async ({
+	destinationGoogleId,
+	userId,
+}: {
+	destinationGoogleId: string;
+	userId: string;
+}) => {
+	try {
+		const destination = await findOrCreateDestination({
+			googleId: destinationGoogleId,
+		});
+
+		await prisma.destinationVisit.deleteMany({
+			where: {
+				AND: {
+					destinationId: destination?.id,
+					userId: userId,
+				},
+			},
+		});
+	} catch (err) {
+		console.log("ERROR OCCURRED IN Deleting", err);
 	}
 
 	const totalVisits = await prisma.destinationVisit.count();

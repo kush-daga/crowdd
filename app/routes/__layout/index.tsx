@@ -1,5 +1,5 @@
 import type { LoaderFunction } from "@remix-run/node";
-import type { Destination, User } from "@prisma/client";
+import type { User } from "@prisma/client";
 import { json } from "@remix-run/node";
 import { Form, Link, useLoaderData, useNavigate } from "@remix-run/react";
 import { checkUserAuth } from "~/utils/auth.server";

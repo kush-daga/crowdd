@@ -9,6 +9,7 @@ specifiers:
   '@remix-run/react': ^1.7.5
   '@remix-run/serve': ^1.7.5
   '@remix-run/vercel': ^1.7.5
+  '@tailwindcss/line-clamp': ^0.4.2
   '@types/react': ^18.0.15
   '@types/react-dom': ^18.0.6
   '@vercel/node': ^2.4.4
@@ -41,6 +42,7 @@ devDependencies:
   '@remix-run/dev': 1.7.5_67odqug3q6zvwws4422s5yrks4
   '@remix-run/eslint-config': 1.7.5_u5s2ztivgin3yy4srvdhm3tgpm
   '@remix-run/serve': 1.7.5_biqbaboplfbrettd7655fr4n2y
+  '@tailwindcss/line-clamp': 0.4.2_tailwindcss@3.2.4
   '@types/react': 18.0.25
   '@types/react-dom': 18.0.8
   autoprefixer: 10.4.13_postcss@8.4.19
@@ -1817,6 +1819,14 @@ packages:
     engines: {node: '>=10'}
     dependencies:
       defer-to-connect: 2.0.1
+    dev: true
+
+  /@tailwindcss/line-clamp/0.4.2_tailwindcss@3.2.4:
+    resolution: {integrity: sha512-HFzAQuqYCjyy/SX9sLGB1lroPzmcnWv1FHkIpmypte10hptf4oPUfucryMKovZh2u0uiS9U5Ty3GghWfEJGwVw==}
+    peerDependencies:
+      tailwindcss: '>=2.0.0 || >=3.0.0 || >=3.0.0-alpha.1'
+    dependencies:
+      tailwindcss: 3.2.4_postcss@8.4.19
     dev: true
 
   /@testing-library/dom/8.19.0:
