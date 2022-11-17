@@ -12,6 +12,7 @@ type LoaderData = Awaited<
 		user: User;
 		destination: Destination;
 		googleData: Partial<PlaceData>;
+		placeImage: any;
 	}>
 >;
 
@@ -32,7 +33,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 			c.types.includes("locality")
 		);
 
-		const destination = await findOrCreateDestination({
+		const destinationPromise = findOrCreateDestination({
 			googleId: place.place_id!,
 			googleData: {
 				googlePlaceId: place.place_id!,
@@ -43,17 +44,55 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 			},
 		});
 
-		return json({
-			user,
-			destination: destination,
-			googleData: place,
-		});
-	} catch (e: any) {
-		throw new Error(e.response.data.error_message);
+		if (place.photos) {
+			const reference = place.photos![0].photo_reference;
+			const placePhotoPromise = await client.placePhoto({
+				params: {
+					photoreference: reference,
+					key: process.env.GOOGLE_MAPS_SERVER_KEY!,
+					client_id: process.env.GOOGLE_MAPS_CLIENT_ID!,
+					client_secret: process.env.GOOGLE_MAPS_CLIENT_SECRET!,
+					maxwidth: 1920,
+				},
+				responseType: "arraybuffer",
+			});
+			const [destination, placePhoto] = await Promise.all([
+				destinationPromise,
+				placePhotoPromise,
+			]);
+
+			var base64String = placePhoto.data.toString("base64");
+
+			return json({
+				user,
+				destination: destination,
+				googleData: place,
+				placeImage: base64String,
+			});
+		} else {
+			const [destination] = await Promise.all([destinationPromise]);
+			return json({
+				user,
+				destination: destination,
+				googleData: place,
+				placeImage: "",
+			});
+		}
+	} catch (err: any) {
+		throw new Error(err);
 	}
 };
 
 export default function DestinationRoute() {
 	const data = useLoaderData<LoaderData>();
-	return <div>Destination {data.destination.name}</div>;
+	return (
+		<div>
+			<img
+				className="h-[300px] w-full object-cover"
+				alt="destination"
+				src={`data:image/png;base64,${data?.placeImage}`}
+			/>
+			<h1 className="font-bold text-3xl mt-4">{data.destination.name}</h1>
+		</div>
+	);
 }

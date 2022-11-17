@@ -1,7 +1,7 @@
 import type { LoaderFunction } from "@remix-run/node";
 import type { Destination, User } from "@prisma/client";
 import { json } from "@remix-run/node";
-import { Form, useLoaderData, useNavigate } from "@remix-run/react";
+import { Form, Link, useLoaderData, useNavigate } from "@remix-run/react";
 import { checkUserAuth } from "~/utils/auth.server";
 import { useCallback, useEffect, useRef, useState } from "react";
 import useTopDestinations from "~/utils/hooks/useTopDestinations";
@@ -107,9 +107,28 @@ export default function Home() {
 				ref={inputRef}
 			></input>
 			<h1 className="font-bold text-lg mt-5">Popular Destinations</h1>
-			<ul>
+			<ul className="my-5 flex flex-col">
 				{destinations.map((destination) => {
-					return <li key={destination.id}>{destination.name}</li>;
+					return (
+						<Link
+							to={`/destinations/${destination.googlePlaceId}`}
+							className="p-4 bg-gray-100 rounded-md hover:bg-gray-200"
+							key={destination.id}
+						>
+							<div className="flex justify-between">
+								<h3 className="font-bold text-gray-800 ">{destination.name}</h3>
+								<h4 className="font-semibold text-yellow-900">
+									⭐️ {destination.rating} / 5
+								</h4>
+							</div>
+							<div className="flex justify-between">
+								<p className="max-w-[70%] text-sm">{destination.description}</p>
+								<button className="font-semibold text-sm text-gray-700">
+									Check In →
+								</button>
+							</div>
+						</Link>
+					);
 				})}
 			</ul>
 			<Form method="post" action="/logout">
