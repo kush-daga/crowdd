@@ -23,6 +23,7 @@ const checkUserAuth = async (request: Request) => {
 	const user = await authenticator.isAuthenticated(request, {
 		failureRedirect: "/login",
 	});
+
 	return { user };
 };
 

@@ -3,12 +3,13 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["filteredRelationCount"]
+  previewFeatures = ["filteredRelationCount", "referentialIntegrity"]
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider             = "mysql"
+  url                  = env("DATABASE_URL")
+  referentialIntegrity = "prisma"
 }
 
 model User {
@@ -25,11 +26,11 @@ model Destination {
   name              String
   locality          String
   rating            String
-  description       String
+  description       String             @db.LongText
   destinationVisits DestinationVisit[]
-  photoReference    String?
+  photoReference    String?            @db.Text
   priceLevel        Int?
-  photoUrl          String?
+  photoUrl          String?            @db.LongText
 }
 
 model DestinationVisit {
