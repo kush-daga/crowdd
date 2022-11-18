@@ -1,6 +1,51 @@
 import type { Destination } from "@prisma/client";
 import { prisma } from "~/utils/prisma.server";
 
+export const findDestination = async ({ googleId }: { googleId: string }) => {
+	const existingDestination = await prisma.destination.findUnique({
+		where: {
+			googlePlaceId: googleId,
+		},
+		include: {
+			destinationVisits: true,
+		},
+	});
+
+	return existingDestination;
+};
+
+export const createDestination = async ({
+	googleData,
+}: {
+	googleData: Omit<Destination, "id">;
+}) => {
+	const {
+		locality,
+		description,
+		googlePlaceId,
+		name,
+		rating,
+		priceLevel,
+		photoReference,
+	} = googleData;
+
+	const destination = await prisma.destination.create({
+		data: {
+			locality,
+			description,
+			googlePlaceId,
+			name,
+			rating,
+			priceLevel,
+			photoReference,
+		},
+		include: {
+			destinationVisits: true,
+		},
+	});
+	return destination;
+};
+
 export const findOrCreateDestination = async ({
 	googleId,
 	googleData,
@@ -15,22 +60,42 @@ export const findOrCreateDestination = async ({
 		},
 	});
 
+	console.log("EXISTING", existingDestination);
 	if (!existingDestination && googleData) {
-		const { locality, description, googlePlaceId, name, rating } = googleData;
+		const {
+			locality,
+			description,
+			googlePlaceId,
+			name,
+			rating,
+			priceLevel,
+			photoReference,
+			photoUrl,
+		} = googleData;
 
-		const destination = await prisma.destination.create({
-			data: {
-				locality,
-				description,
-				googlePlaceId,
-				name,
-				rating,
-			},
-			include: {
-				destinationVisits: true,
-			},
-		});
-		return destination;
+		console.log("CREATING IN FUNC", googleData);
+		try {
+			const destination = await prisma.destination.create({
+				data: {
+					locality,
+					description,
+					googlePlaceId,
+					name,
+					rating,
+					priceLevel,
+					photoReference,
+					photoUrl,
+				},
+				include: {
+					destinationVisits: true,
+				},
+			});
+
+			console.log("CREATED IN FUNC", destination);
+			return destination;
+		} catch (err) {
+			console.log("ERROR", err);
+		}
 	}
 
 	if (!existingDestination && !googleData) {

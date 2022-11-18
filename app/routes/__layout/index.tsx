@@ -1,10 +1,11 @@
 import type { LoaderFunction } from "@remix-run/node";
 import type { User } from "@prisma/client";
 import { json } from "@remix-run/node";
-import { Form, Link, useLoaderData, useNavigate } from "@remix-run/react";
+import { Form, Link, useNavigate } from "@remix-run/react";
 import { checkUserAuth } from "~/utils/auth.server";
 import { useCallback, useEffect, useRef, useState } from "react";
 import useTopDestinations from "~/utils/hooks/useTopDestinations";
+import type { PlaceData } from "@googlemaps/google-maps-services-js";
 
 type LoaderData = Awaited<Promise<{ user: User }>>;
 
@@ -17,14 +18,20 @@ export let loader: LoaderFunction = async ({ request }) => {
 };
 
 export default function Home() {
-	const { user } = useLoaderData<LoaderData>();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [locality, setLocality] = useState("Bengaluru");
 	const { destinations } = useTopDestinations({ locality });
 	const navigate = useNavigate();
 
-	const handleSelect = ({ googlePlaceId }: { googlePlaceId: string }) => {
-		navigate(`/destinations/${googlePlaceId}`);
+	const handleSelect = async ({ place }: { place: PlaceData }) => {
+		await fetch(`/destinations/validate/${place.place_id}`, {
+			method: "POST",
+			body: JSON.stringify({
+				...place,
+				photoUrl: (place as any).photos[0].getUrl(),
+			}),
+		});
+		navigate(`/destinations/${place.place_id}`);
 	};
 
 	const initGeoLocator = useCallback(() => {
@@ -77,10 +84,10 @@ export default function Home() {
 				.getPlace()
 				.address_components.filter((c: any) => c.types.includes("locality"));
 			console.log(localities[0].long_name);
-			const place = autocomplete.getPlace();
+			const place: PlaceData = autocomplete.getPlace();
 			console.log(place);
 			handleSelect({
-				googlePlaceId: place.place_id,
+				place,
 			});
 		});
 
@@ -107,7 +114,7 @@ export default function Home() {
 				ref={inputRef}
 			></input>
 			<h1 className="font-bold text-lg mt-5">Popular Destinations</h1>
-			<ul className="my-5 flex flex-col">
+			<ul className="my-5 flex flex-col gap-4">
 				{destinations.map((destination) => {
 					return (
 						<Link
@@ -122,7 +129,9 @@ export default function Home() {
 								</h4>
 							</div>
 							<div className="flex justify-between">
-								<p className="max-w-[70%] text-sm">{destination.description}</p>
+								<p className="max-w-[70%] text-sm line-clamp-3">
+									{destination.description}
+								</p>
 								<button className="font-semibold text-sm text-gray-700">
 									Check In →
 								</button>

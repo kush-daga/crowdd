@@ -27,6 +27,9 @@ model Destination {
   rating            String
   description       String
   destinationVisits DestinationVisit[]
+  photoReference    String?
+  priceLevel        Int?
+  photoUrl          String?
 }
 
 model DestinationVisit {

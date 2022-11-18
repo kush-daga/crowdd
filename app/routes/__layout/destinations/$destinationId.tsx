@@ -1,6 +1,5 @@
 import type { ActionFunction, LoaderFunction } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
-import type { PlaceData } from "@googlemaps/google-maps-services-js";
 import type { Destination, DestinationVisit, User } from "@prisma/client";
 import { json } from "@remix-run/node";
 import { checkUserAuth } from "~/utils/auth.server";
@@ -8,7 +7,8 @@ import { Form, useLoaderData } from "@remix-run/react";
 import { Client as GoogleClient } from "@googlemaps/google-maps-services-js";
 import {
 	checkOutVisit,
-	findOrCreateDestination,
+	createDestination,
+	findDestination,
 	markVisit,
 } from "~/utils/db/models/destination.server";
 
@@ -16,7 +16,6 @@ type LoaderData = Awaited<
 	Promise<{
 		user: User;
 		destination: Destination & { destinationVisits: DestinationVisit[] };
-		googleData: Partial<PlaceData>;
 		placeImage: any;
 	}>
 >;
@@ -25,35 +24,24 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 	const { user } = await checkUserAuth(request);
 	const client = new GoogleClient({});
 
-	try {
-		const res = await client.placeDetails({
-			params: {
-				key: process.env.GOOGLE_MAPS_SERVER_KEY!,
-				place_id: params.destinationId!,
-			},
-		});
+	if (!params.destinationId) return {};
 
-		const place = res.data?.result;
-		const localities = place.address_components?.filter((c: any) =>
-			c.types.includes("locality")
-		);
+	const existingDestination = await findDestination({
+		googleId: params.destinationId,
+	});
 
-		const destinationPromise = findOrCreateDestination({
-			googleId: place.place_id!,
-			googleData: {
-				googlePlaceId: place.place_id!,
-				name: place.name!,
-				locality: localities![0].long_name!,
-				rating: (place.rating as number).toString(),
-				description: place.formatted_address!,
-			},
-		});
-
-		if (place.photos) {
-			const reference = place.photos![0].photo_reference;
-			const placePhotoPromise = client.placePhoto({
+	if (existingDestination) {
+		if (existingDestination.photoUrl) {
+			return {
+				user,
+				destination: existingDestination,
+				placeImage: existingDestination.photoUrl,
+			};
+		} else if (existingDestination.photoReference) {
+			console.warn("CALLING GOOGLE PHOTOS");
+			const placePhoto = await client.placePhoto({
 				params: {
-					photoreference: reference,
+					photoreference: existingDestination.photoReference,
 					key: process.env.GOOGLE_MAPS_SERVER_KEY!,
 					client_id: process.env.GOOGLE_MAPS_CLIENT_ID!,
 					client_secret: process.env.GOOGLE_MAPS_CLIENT_SECRET!,
@@ -61,31 +49,85 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 				},
 				responseType: "arraybuffer",
 			});
-			const [destination, placePhoto] = await Promise.all([
-				destinationPromise,
-				placePhotoPromise,
-			]);
 
-			var base64String = placePhoto.data.toString("base64");
+			let base64String = `data:image/png;base64,${placePhoto.data.toString(
+				"base64"
+			)}`;
 
-			return json({
+			return {
 				user,
-				destination: destination,
-				googleData: place,
-				placeImage: base64String,
-			});
-		} else {
-			const [destination] = await Promise.all([destinationPromise]);
-			return json({
-				user,
-				destination: destination,
-				googleData: place,
-				placeImage: "",
-			});
+				destination: existingDestination,
+				placeImage: base64String ?? "",
+			};
 		}
-	} catch (err: any) {
-		throw new Error(err);
+	} else {
+		console.warn("DESTINATION DOESN'T EXIST");
+		try {
+			const res = await client.placeDetails({
+				params: {
+					key: process.env.GOOGLE_MAPS_SERVER_KEY!,
+					place_id: params.destinationId!,
+				},
+			});
+
+			const place = res.data?.result;
+			const localities = place.address_components?.filter((c: any) =>
+				c.types.includes("locality")
+			);
+
+			const destinationPromise = createDestination({
+				googleData: {
+					googlePlaceId: place.place_id!,
+					name: place.name!,
+					locality: localities![0].long_name!,
+					rating: (place.rating as number).toString(),
+					description: place.formatted_address!,
+					photoReference: place.photos![0].photo_reference ?? null,
+					priceLevel: place.price_level ?? null,
+					photoUrl: null,
+				},
+			});
+
+			if (place.photos) {
+				const reference = place.photos![0].photo_reference;
+				const placePhotoPromise = client.placePhoto({
+					params: {
+						photoreference: reference,
+						key: process.env.GOOGLE_MAPS_SERVER_KEY!,
+						client_id: process.env.GOOGLE_MAPS_CLIENT_ID!,
+						client_secret: process.env.GOOGLE_MAPS_CLIENT_SECRET!,
+						maxwidth: 1920,
+					},
+					responseType: "arraybuffer",
+				});
+				const [destination, placePhoto] = await Promise.all([
+					destinationPromise,
+					placePhotoPromise,
+				]);
+
+				let base64String = `data:image/png;base64,${placePhoto.data.toString(
+					"base64"
+				)}`;
+
+				return json({
+					user,
+					destination: destination,
+					placeImage: base64String,
+				});
+			} else {
+				const [destination] = await Promise.all([destinationPromise]);
+				return json({
+					user,
+					destination: destination,
+					placeImage: "",
+				});
+			}
+		} catch (err: any) {
+			throw new Error(err);
+		}
 	}
+
+	return {};
 };
 
 export const action: ActionFunction = async ({ params, request }) => {
@@ -117,10 +159,10 @@ export const action: ActionFunction = async ({ params, request }) => {
 
 export default function DestinationRoute() {
 	const data = useLoaderData<LoaderData>();
-	const isOpen = data.googleData.opening_hours?.open_now;
-	const isOpenPillStyle = isOpen
-		? "bg-green-100 border-green-500 text-green-700"
-		: "bg-red-100 border-red-500 text-red-700";
+
+	// const isOpenPillStyle = isOpen
+	// 	? "bg-green-100 border-green-500 text-green-700"
+	// 	: "bg-red-100 border-red-500 text-red-700";
 
 	const name = data.destination.name;
 	const visits = data.destination.destinationVisits;
@@ -135,7 +177,7 @@ export default function DestinationRoute() {
 			<img
 				className="h-[300px] w-full object-cover my-6 rounded-md shadow-md"
 				alt="destination"
-				src={`data:image/png;base64,${data?.placeImage}`}
+				src={`${data?.placeImage}`}
 			/>
 			<div className="flex items-center justify-between gap-4">
 				<div className="flex items-baseline gap-4">
@@ -145,9 +187,9 @@ export default function DestinationRoute() {
 					<h1 className="font-bold md:hidden text-2xl md:text-4xl">
 						{name.length > 12 ? name.substring(0, 12) + "..." : name}
 					</h1>
-					{data.googleData.price_level && (
+					{data.destination.priceLevel && (
 						<div>
-							{new Array(data.googleData.price_level)
+							{new Array(data.destination.priceLevel)
 								.fill(0)
 								.map((l: number, idx) => {
 									const colorMap = {
@@ -181,13 +223,6 @@ export default function DestinationRoute() {
 								})}
 						</div>
 					)}
-				</div>
-				<div className="">
-					<p
-						className={`font-semibold flex items-center justify-center  px-3 py-0.5 text-xs md:text-sm rounded-xl border ${isOpenPillStyle}`}
-					>
-						{isOpen ? "OPEN" : "CLOSED"}
-					</p>
 				</div>
 			</div>
 
