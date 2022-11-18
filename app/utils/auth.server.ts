@@ -13,7 +13,10 @@ authenticator.use(
 		{
 			clientID: process.env.GOOGLE_CLIENT_ID as string,
 			clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-			callbackURL: `http://localhost:3000/auth/${SocialsProvider.GOOGLE}/callback`,
+			callbackURL:
+				process.env.NODE_ENV === "development"
+					? `http://localhost:3000/auth/${SocialsProvider.GOOGLE}/callback`
+					: `https://crowdd.vercel.app/auth/${SocialsProvider.GOOGLE}/callback`,
 		},
 		userVerify
 	)
