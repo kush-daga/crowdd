@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import useTopDestinations from "~/utils/hooks/useTopDestinations";
 import type { PlaceData } from "@googlemaps/google-maps-services-js";
 import { getMyDestinations } from "~/utils/db/models/destination.server";
-import DestinationItem from "~/components/destinationItem";
+import DestinationItem from "~/components/DestinationItem";
 
 type LoaderData = Awaited<
 	Promise<{
