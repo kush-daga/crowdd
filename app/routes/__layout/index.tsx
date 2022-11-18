@@ -19,20 +19,27 @@ export let loader: LoaderFunction = async ({ request }) => {
 
 export default function Home() {
 	const inputRef = useRef<HTMLInputElement>(null);
-	const [locality, setLocality] = useState("Bengaluru");
+	const [locality, setLocality] = useState(
+		typeof localStorage !== "undefined"
+			? localStorage.getItem("locality") ?? "Bengaluru"
+			: null
+	);
 	const { destinations } = useTopDestinations({ locality });
 	const navigate = useNavigate();
 
-	const handleSelect = async ({ place }: { place: PlaceData }) => {
-		await fetch(`/destinations/validate/${place.place_id}`, {
-			method: "POST",
-			body: JSON.stringify({
-				...place,
-				photoUrl: (place as any).photos[0].getUrl(),
-			}),
-		});
-		navigate(`/destinations/${place.place_id}`);
-	};
+	const handleSelect = useCallback(
+		async ({ place }: { place: PlaceData }) => {
+			await fetch(`/destinations/validate/${place.place_id}`, {
+				method: "POST",
+				body: JSON.stringify({
+					...place,
+					photoUrl: (place as any).photos[0].getUrl(),
+				}),
+			});
+			navigate(`/destinations/${place.place_id}`);
+		},
+		[navigate]
+	);
 
 	const initGeoLocator = useCallback(() => {
 		if (navigator.geolocation) {
@@ -47,6 +54,10 @@ export default function Home() {
 			lat: position.coords.latitude,
 			lng: position.coords.longitude,
 		};
+		if (localStorage.getItem("locality")) {
+			console.log("USING LOCAL");
+			return;
+		}
 		const geocoder = new (window as any).google.maps.Geocoder();
 		geocoder
 			.geocode({ location })
@@ -58,6 +69,7 @@ export default function Home() {
 					const _locality = localities[0].long_name;
 					console.log("LoCALITy", _locality);
 					setLocality(_locality);
+					localStorage.setItem("locality", _locality);
 				} else {
 					window.alert("No results found");
 				}
@@ -92,15 +104,18 @@ export default function Home() {
 		});
 
 		return listener;
-	}, []);
+	}, [handleSelect]);
 
 	useEffect(() => {
 		initGeoLocator();
+	}, [initGeoLocator]);
+
+	useEffect(() => {
 		const listener = initAutocomplete();
 		return () => {
 			listener.remove();
 		};
-	}, [initAutocomplete, initGeoLocator]);
+	}, [initAutocomplete]);
 
 	return (
 		<>
@@ -129,7 +144,7 @@ export default function Home() {
 								</h4>
 							</div>
 							<div className="flex justify-between">
-								<p className="max-w-[70%] text-sm line-clamp-3">
+								<p className="max-w-[70%] text-sm line-clamp-3 md:line-clamp-2">
 									{destination.description}
 								</p>
 								<button className="font-semibold text-sm text-gray-700">

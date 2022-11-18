@@ -800,4 +800,11 @@ video {
     font-size: 1.875rem;
     line-height: 2.25rem;
   }
+
+  .md\:line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
 }

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 const useTopDestinations = ({
 	locality,
 }: {
-	locality: string;
+	locality: string | null;
 }): {
 	destinations: Destination[];
 	loading: boolean;
@@ -16,6 +16,7 @@ const useTopDestinations = ({
 
 	useEffect(() => {
 		setLoading(true);
+		if (!locality) return;
 		fetch(`/api/destinations/top?locality=${locality}`)
 			.then((res) => res.json())
 			.then((data) => {
