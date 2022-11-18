@@ -208,3 +208,35 @@ export const getTopDestinationsIndia = async ({
 	}
 	return destinations;
 };
+
+export const getMyDestinations = async ({ userId }: { userId: string }) => {
+	const myDestinationVisits = await prisma.destinationVisit.findMany({
+		where: { userId: userId },
+		include: {
+			destination: {
+				include: {
+					_count: {
+						select: {
+							destinationVisits: true,
+						},
+					},
+				},
+			},
+		},
+	});
+
+	let destinationIds: string[] = [];
+	let destinations: (Destination & {
+		_count: { destinationVisits: number };
+	})[] = [];
+
+	myDestinationVisits.forEach((d) => {
+		if (destinationIds.includes(d.destinationId)) {
+			return;
+		}
+		destinations.push(d.destination);
+		destinationIds.push(d.destinationId);
+	});
+
+	return destinations;
+};

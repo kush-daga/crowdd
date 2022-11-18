@@ -1,25 +1,38 @@
 import type { LoaderFunction } from "@remix-run/node";
-import type { User } from "@prisma/client";
+import type { Destination, User } from "@prisma/client";
 import { json } from "@remix-run/node";
-import { Form, Link, useLoaderData, useNavigate } from "@remix-run/react";
+import { useLoaderData, useNavigate } from "@remix-run/react";
 import { checkUserAuth } from "~/utils/auth.server";
 import { useCallback, useEffect, useRef, useState } from "react";
 import useTopDestinations from "~/utils/hooks/useTopDestinations";
 import type { PlaceData } from "@googlemaps/google-maps-services-js";
+import { getMyDestinations } from "~/utils/db/models/destination.server";
+import DestinationItem from "~/components/destinationItem";
 
-type LoaderData = Awaited<Promise<{ user: User }>>;
+type LoaderData = Awaited<
+	Promise<{
+		user: User;
+		myDestinations: (Destination & {
+			_count: {
+				destinationVisits: number;
+			};
+		})[];
+	}>
+>;
 
 export let loader: LoaderFunction = async ({ request }) => {
 	const { user } = await checkUserAuth(request);
 
+	const myDestinations = await getMyDestinations({ userId: user.id });
 	return json<LoaderData>({
 		user,
+		myDestinations,
 	});
 };
 
 export default function Home() {
 	const inputRef = useRef<HTMLInputElement>(null);
-	const { user } = useLoaderData<LoaderData>();
+	const { myDestinations } = useLoaderData<LoaderData>();
 
 	const [locality, setLocality] = useState(
 		typeof localStorage !== "undefined"
@@ -131,67 +144,39 @@ export default function Home() {
 				autoFocus={false}
 				ref={inputRef}
 			></input>
-			<h1 className="font-bold text-lg mt-5">Popular Destinations</h1>
+			{myDestinations.length > 0 && (
+				<h1 className="font-bold text-lg mt-5">
+					Your Checked-in Destinations!
+				</h1>
+			)}
+			<ul className="my-5 flex flex-col gap-4">
+				{myDestinations.map((destination) => {
+					return (
+						<DestinationItem
+							key={destination.id}
+							destination={destination}
+							peopleCount={destination._count.destinationVisits}
+							selfCheckedIn={
+								myDestinations.filter((d) => d.id === destination.id).length > 0
+							}
+						/>
+					);
+				})}
+			</ul>
+			<h1 className="font-bold text-lg mt-5">
+				Popular Destinations around {locality}
+			</h1>
 			<ul className="my-5 flex flex-col gap-4">
 				{destinations.map((destination) => {
 					return (
-						<Link
-							to={`/destinations/${destination.googlePlaceId}`}
-							className="p-4 bg-gray-50 rounded-md hover:bg-gray-200 border border-gray-300"
+						<DestinationItem
 							key={destination.id}
-						>
-							<div className="flex justify-between">
-								<h3 className="font-bold text-gray-800 flex gap-4 items-baseline">
-									{destination.name.length > 20
-										? destination.name.substring(0, 20) + "..."
-										: destination.name}
-									{"   "}
-									<span className="text-gray-700">
-										<span className="text-xl">👥</span> {"  "}
-										{destination.destinationVisits.length}
-									</span>
-								</h3>
-								<h4 className="font-semibold text-yellow-900">
-									⭐️ {destination.rating} / 5
-								</h4>
-							</div>
-							<div className="flex justify-between">
-								<p className="max-w-[70%] text-sm line-clamp-3 md:line-clamp-2">
-									{destination.description}
-								</p>
-								<Form
-									method="post"
-									action={`/destinations/${destination.googlePlaceId}`}
-									reloadDocument
-								>
-									{destination.destinationVisits.filter(
-										(d) => d.userId === user.id
-									).length > 0 ? (
-										<button
-											onClick={(e) => {
-												e.stopPropagation();
-											}}
-											className="font-semibold text-sm px-2 mt-2 rounded-md py-1 border border-black bg-gray-200 text-gray-900 hover:bg-gray-500 hover:text-white"
-											name="intent"
-											value={"check-out"}
-										>
-											Check Out
-										</button>
-									) : (
-										<button
-											className="font-semibold text-sm px-2 mt-2 rounded-md py-1 border border-black bg-gray-200 text-gray-900 hover:bg-gray-500 hover:text-white"
-											name="intent"
-											onClick={(e) => {
-												e.stopPropagation();
-											}}
-											value={"check-in"}
-										>
-											Check In
-										</button>
-									)}
-								</Form>
-							</div>
-						</Link>
+							destination={destination}
+							peopleCount={destination.destinationVisits?.length}
+							selfCheckedIn={
+								myDestinations.filter((d) => d.id === destination.id).length > 0
+							}
+						/>
 					);
 				})}
 			</ul>
