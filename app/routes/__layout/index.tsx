@@ -128,7 +128,7 @@ export default function Home() {
 				name="search-place-input"
 				className="w-full bg-gray-50 focus:outline-gray-300 py-2 px-4 my-2 rounded-sm"
 				id="search-place-input"
-				autoFocus
+				autoFocus={false}
 				ref={inputRef}
 			></input>
 			<h1 className="font-bold text-lg mt-5">Popular Destinations</h1>
