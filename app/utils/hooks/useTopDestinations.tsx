@@ -1,4 +1,4 @@
-import type { Destination } from "@prisma/client";
+import type { Destination, DestinationVisit } from "@prisma/client";
 import { useState, useEffect } from "react";
 
 const useTopDestinations = ({
@@ -6,11 +6,13 @@ const useTopDestinations = ({
 }: {
 	locality: string | null;
 }): {
-	destinations: Destination[];
+	destinations: (Destination & { destinationVisits: DestinationVisit[] })[];
 	loading: boolean;
 	error: boolean;
 } => {
-	const [destinations, setDestinations] = useState<Destination[]>([]);
+	const [destinations, setDestinations] = useState<
+		(Destination & { destinationVisits: DestinationVisit[] })[]
+	>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(false);
 

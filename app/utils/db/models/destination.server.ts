@@ -1,4 +1,4 @@
-import type { Destination } from "@prisma/client";
+import type { Destination, DestinationVisit } from "@prisma/client";
 import { prisma } from "~/utils/prisma.server";
 
 export const findDestination = async ({ googleId }: { googleId: string }) => {
@@ -174,7 +174,10 @@ export const getTopDestinationsIndia = async ({
 }: {
 	locality: string | null;
 }) => {
-	let destinations = [];
+	let destinations: (Destination & {
+		destinationVisits: DestinationVisit[];
+	})[] = [];
+	console.log("GETTING TOP", locality);
 	if (!locality) {
 		destinations = await prisma.destination.findMany({
 			orderBy: {
@@ -183,6 +186,9 @@ export const getTopDestinationsIndia = async ({
 				},
 			},
 			take: 20,
+			include: {
+				destinationVisits: true,
+			},
 		});
 	} else {
 		destinations = await prisma.destination.findMany({
@@ -194,6 +200,9 @@ export const getTopDestinationsIndia = async ({
 			take: 20,
 			where: {
 				locality,
+			},
+			include: {
+				destinationVisits: true,
 			},
 		});
 	}

@@ -1,7 +1,7 @@
 import type { LoaderFunction } from "@remix-run/node";
 import type { User } from "@prisma/client";
 import { json } from "@remix-run/node";
-import { Form, Link, useNavigate } from "@remix-run/react";
+import { Form, Link, useLoaderData, useNavigate } from "@remix-run/react";
 import { checkUserAuth } from "~/utils/auth.server";
 import { useCallback, useEffect, useRef, useState } from "react";
 import useTopDestinations from "~/utils/hooks/useTopDestinations";
@@ -19,6 +19,8 @@ export let loader: LoaderFunction = async ({ request }) => {
 
 export default function Home() {
 	const inputRef = useRef<HTMLInputElement>(null);
+	const { user } = useLoaderData<LoaderData>();
+
 	const [locality, setLocality] = useState(
 		typeof localStorage !== "undefined"
 			? localStorage.getItem("locality") ?? "Bengaluru"
@@ -124,8 +126,9 @@ export default function Home() {
 			</div>
 			<input
 				name="search-place-input"
-				className="w-full bg-gray-100 focus:outline-gray-200 py-2 px-4 my-2 rounded-sm"
+				className="w-full bg-gray-50 focus:outline-gray-300 py-2 px-4 my-2 rounded-sm"
 				id="search-place-input"
+				autoFocus
 				ref={inputRef}
 			></input>
 			<h1 className="font-bold text-lg mt-5">Popular Destinations</h1>
@@ -134,11 +137,20 @@ export default function Home() {
 					return (
 						<Link
 							to={`/destinations/${destination.googlePlaceId}`}
-							className="p-4 bg-gray-100 rounded-md hover:bg-gray-200"
+							className="p-4 bg-gray-50 rounded-md hover:bg-gray-200 border border-gray-300"
 							key={destination.id}
 						>
 							<div className="flex justify-between">
-								<h3 className="font-bold text-gray-800 ">{destination.name}</h3>
+								<h3 className="font-bold text-gray-800 flex gap-4 items-baseline">
+									{destination.name.length > 20
+										? destination.name.substring(0, 20) + "..."
+										: destination.name}
+									{"   "}
+									<span className="text-gray-700">
+										<span className="text-xl">👥</span> {"  "}
+										{destination.destinationVisits.length}
+									</span>
+								</h3>
 								<h4 className="font-semibold text-yellow-900">
 									⭐️ {destination.rating} / 5
 								</h4>
@@ -147,17 +159,42 @@ export default function Home() {
 								<p className="max-w-[70%] text-sm line-clamp-3 md:line-clamp-2">
 									{destination.description}
 								</p>
-								<button className="font-semibold text-sm text-gray-700">
-									Check In →
-								</button>
+								<Form
+									method="post"
+									action={`/destinations/${destination.googlePlaceId}`}
+									reloadDocument
+								>
+									{destination.destinationVisits.filter(
+										(d) => d.userId === user.id
+									).length > 0 ? (
+										<button
+											onClick={(e) => {
+												e.stopPropagation();
+											}}
+											className="font-semibold text-sm px-2 mt-2 rounded-md py-1 border border-black bg-gray-200 text-gray-900 hover:bg-gray-500 hover:text-white"
+											name="intent"
+											value={"check-out"}
+										>
+											Check Out
+										</button>
+									) : (
+										<button
+											className="font-semibold text-sm px-2 mt-2 rounded-md py-1 border border-black bg-gray-200 text-gray-900 hover:bg-gray-500 hover:text-white"
+											name="intent"
+											onClick={(e) => {
+												e.stopPropagation();
+											}}
+											value={"check-in"}
+										>
+											Check In
+										</button>
+									)}
+								</Form>
 							</div>
 						</Link>
 					);
 				})}
 			</ul>
-			<Form method="post" action="/logout">
-				<button>Logout</button>
-			</Form>
 		</>
 	);
 }
