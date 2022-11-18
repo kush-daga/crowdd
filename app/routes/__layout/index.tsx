@@ -23,7 +23,7 @@ export default function Home() {
 
 	const [locality, setLocality] = useState(
 		typeof localStorage !== "undefined"
-			? localStorage.getItem("locality") ?? "Bengaluru"
+			? localStorage.getItem("locality") ?? ""
 			: null
 	);
 	const { destinations } = useTopDestinations({ locality });
