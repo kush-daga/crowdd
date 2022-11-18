@@ -18,7 +18,6 @@ const useTopDestinations = ({
 
 	useEffect(() => {
 		setLoading(true);
-		if (!locality) return;
 		fetch(`/api/destinations/top?locality=${locality}`)
 			.then((res) => res.json())
 			.then((data) => {
