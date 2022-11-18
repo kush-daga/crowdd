@@ -164,7 +164,12 @@ export default function Home() {
 				})}
 			</ul>
 			<h1 className="font-bold text-lg mt-5">
-				Popular Destinations around {locality}
+				Popular Destinations around {locality || "India!"}
+				{!locality && (
+					<div className="font-medium text-gray-400 underline">
+						pls give location permissions for better results!!
+					</div>
+				)}
 			</h1>
 			<ul className="my-5 flex flex-col gap-4">
 				{destinations.map((destination) => {
