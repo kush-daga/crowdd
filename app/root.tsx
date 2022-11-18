@@ -19,8 +19,12 @@ export function links() {
 
 export const meta: MetaFunction = () => ({
 	charset: "utf-8",
-	title: "New Remix App",
+	title: "Crowdd",
 	viewport: "width=device-width,initial-scale=1",
+	description:
+		"Crowdd - Find where the crowd is! Get realtime updates about how many people are at a place!",
+	"og:description":
+		"Crowdd - Find where the crowd is! Get realtime updates about how many people are at a place!",
 });
 export const loader: LoaderFunction = async () => {
 	return json({
