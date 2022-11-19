@@ -11,13 +11,13 @@ export const action: ActionFunction = async ({ params, request }) => {
 				description: payload.formatted_address,
 				googlePlaceId: payload.place_id,
 				name: payload.name,
-				photoReference: payload.photos[0].photo_reference,
-				photoUrl: payload.photoUrl,
-				locality: payload.address_components?.filter((c: any) =>
+				photoReference: payload.photos[0]?.photo_reference,
+				photoUrl: payload?.photoUrl,
+				locality: payload?.address_components?.filter((c: any) =>
 					c.types.includes(PlaceType2.locality)
 				)[0]?.long_name,
 				priceLevel: payload.price_level,
-				rating: payload.rating?.toString(),
+				rating: payload.rating ? payload.rating?.toString() : "0",
 			},
 		});
 		console.log("CREATED", destination);
